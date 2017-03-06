@@ -437,7 +437,7 @@ Copyright (C) 2012 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/root/session_count'
+ac_pwd='/root/code/session_count'
 srcdir='.'
 INSTALL='/usr/bin/install -c'
 MKDIR_P='/bin/mkdir -p'
@@ -649,12 +649,12 @@ S["mkdir_p"]="$(MKDIR_P)"
 S["MKDIR_P"]="/bin/mkdir -p"
 S["INSTALL_STRIP_PROGRAM"]="$(install_sh) -c -s"
 S["STRIP"]=""
-S["install_sh"]="${SHELL} /root/session_count/install-sh"
-S["MAKEINFO"]="${SHELL} /root/session_count/missing makeinfo"
-S["AUTOHEADER"]="${SHELL} /root/session_count/missing autoheader"
-S["AUTOMAKE"]="${SHELL} /root/session_count/missing automake-1.14"
-S["AUTOCONF"]="${SHELL} /root/session_count/missing autoconf"
-S["ACLOCAL"]="${SHELL} /root/session_count/missing aclocal-1.14"
+S["install_sh"]="${SHELL} /root/code/session_count/install-sh"
+S["MAKEINFO"]="${SHELL} /root/code/session_count/missing makeinfo"
+S["AUTOHEADER"]="${SHELL} /root/code/session_count/missing autoheader"
+S["AUTOMAKE"]="${SHELL} /root/code/session_count/missing automake-1.14"
+S["AUTOCONF"]="${SHELL} /root/code/session_count/missing autoconf"
+S["ACLOCAL"]="${SHELL} /root/code/session_count/missing aclocal-1.14"
 S["VERSION"]="0.0.1"
 S["PACKAGE"]="session_count"
 S["CYGPATH_W"]="echo"

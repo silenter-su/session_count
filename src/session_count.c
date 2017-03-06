@@ -4,11 +4,16 @@
 #include <time.h>
 #include <string.h>
 #include <glib.h>
+#include <pthread.h>
 #include "session_count.h"
 
 /* ----------Macros---------- */
+#define HASH_TOTAL 2
+#define TIME_OUT 20 
+#define MAC_HEAD_LEN 14
+#define HEAD_STEP 4
 
-/* ----------Data types---------- */
+/* ----------Data types---------- */ 
 
 /* ----------Externs---------- */
 
@@ -24,7 +29,7 @@ uint16_t		g_ICMP_num = 0;
 /* ---------- glib'hash table function ---------- */
 void free_key(gpointer f_key)
 {
-	if(NULL == f_key)
+	if(NULL == f_key) //replace NULL;
 	{
 		printf("free_key parameter NULL!!!\n");
 		return;
@@ -96,8 +101,47 @@ void is_TCP(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
 
 }
 
-void is_UDP(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
+void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *udp_hdr)
 {
+	value* ret = NULL;
+	key* tmp_key = NULL;
+	value* tmp_value = NULL;
+	if(!(tmp_key = (key*)calloc(1,sizeof(key))) || !(tmp_value = (value*)calloc(1,sizeof(value))))
+	{
+		printf("is_UDP temp key or value calloc failed!\n");
+	}
+
+	
+	tmp_key->ip_src = ip_hdr->ip_src.s_addr;
+	tmp_key->ip_dst = ip_hdr->ip_dst.s_addr;
+	tmp_key->port_src = udp_hdr->uh_sport;
+	tmp_key->port_dst = udp_hdr->uh_dport;
+
+	gettimeofday(&tmp_value->arrived_time,NULL);
+
+	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)&tmp_key)))
+	{
+		/* lock */
+		g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+		g_UDP_num++;
+		/* unlock */
+	}
+	else
+	{
+		if((tmp_value->arrived_time.tv_sec - ret->arrived_time.tv_sec) >= TIME_OUT)
+		{
+			/* lock */
+			g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+			g_UDP_num++;
+			/* unlock */
+		}
+		else
+		{
+			g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+		}
+	}
+	printf("----------%d----------\n",g_UDP_num);
+
 
 }
 
@@ -114,16 +158,21 @@ void is_other_protocol(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
 /* ---------- other ---------- */
 int session_count_init()
 {
+	int tmp = 0;
 	g_hash_UDP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
 	g_hash_ICMP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
 	if(NULL == g_hash_UDP || NULL == g_hash_ICMP)
-	  return 0;
-	return 1;
+	  return 1;
+	/* creat & init the hash table mutex */
+	/* creat pthred for manage the each hash table */
+	//if(tmp = pthread_create(&
+	return 0;
 }
 void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr, const u_char * packet)
 {
 	IPHdr *ip_hdr = NULL;
-	ip_hdr = (IPHdr*)(packet + 14);
+	ip_hdr = (IPHdr*)(packet + MAC_HEAD_LEN);
+
 	
 	switch(ip_hdr->ip_proto)
 	{
@@ -131,7 +180,12 @@ void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr, const u_char * pa
 			is_TCP(pkthdr,ip_hdr);
 			break;
 		case IPPROTO_UDP:
-			is_UDP(pkthdr,ip_hdr);
+			{
+				UDPHdr* udp_hdr;
+				udp_hdr = (UDPHdr*)(packet + MAC_HEAD_LEN + (HEAD_STEP * (ip_hdr->ip_verhl & 0xf))); /*get UDP header right place*/
+				//printf("主机字节序:%u\n",htons(udp_hdr->uh_dport));
+				is_UDP(pkthdr,ip_hdr,udp_hdr);
+			}
 			break;
 		case IPPROTO_ICMP:
 			is_ICMP(pkthdr,ip_hdr);
@@ -152,39 +206,39 @@ void main ()
 		exit(1);
 	}
 
-	g_hash = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
-	if(NULL == g_hash)
-	{
-		printf("Create hash table failed!!!\n");
-	}
+//	g_hash = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
+//	if(NULL == g_hash)
+//	{
+//		printf("Create hash table failed!!!\n");
+//	}
+//
+//	key hash_key;
+//	value hash_value;
+//	memset(&hash_key,0,sizeof(key));
+//	memset(&hash_value,0,sizeof(value));
+//
+//	hash_key.port_src = 1;
+//	hash_key.port_dst = 2;
+//	hash_key.ip_src = 3;
+//	hash_key.ip_dst = 4;
+//
+//	hash_value.arrived_time.tv_sec = 5678;
+//	hash_value.arrived_time.tv_usec = 1234567890;
+//
+//	g_hash_table_insert(g_hash,(gpointer)&hash_key,(gpointer)&hash_value);
+//	printf("Hash size:%d\n", g_hash_table_size(g_hash));
+//	g_hash_table_foreach(g_hash,print_key_value,NULL);
+//
+//	value* return_val = NULL;
+//	return_val = g_hash_table_lookup(g_hash,(gpointer)&hash_key);
+//
+//	printf("return_val->arrived_time.tv_sec = %d\n"
+//			"return_val->arrived_time.tv_usec = %d\n"
+//			,return_val->arrived_time.tv_sec
+//			,return_val->arrived_time.tv_usec);
 
-	key hash_key;
-	value hash_value;
-	memset(&hash_key,0,sizeof(key));
-	memset(&hash_value,0,sizeof(value));
-
-	hash_key.port_src = 1;
-	hash_key.port_dst = 2;
-	hash_key.ip_src = 3;
-	hash_key.ip_dst = 4;
-
-	hash_value.arrived_time.tv_sec = 5678;
-	hash_value.arrived_time.tv_usec = 1234567890;
-
-	g_hash_table_insert(g_hash,(gpointer)&hash_key,(gpointer)&hash_value);
-	printf("Hash size:%d\n", g_hash_table_size(g_hash));
-	g_hash_table_foreach(g_hash,print_key_value,NULL);
-
-	value* return_val = NULL;
-	return_val = g_hash_table_lookup(g_hash,(gpointer)&hash_key);
-
-	printf("return_val->arrived_time.tv_sec = %d\n"
-			"return_val->arrived_time.tv_usec = %d\n"
-			,return_val->arrived_time.tv_sec
-			,return_val->arrived_time.tv_usec);
 
 
-	
 
 
 
@@ -213,7 +267,7 @@ void main ()
 	pcap_loop(device, -1,getPacket,(u_char*)&id);
 
 	pcap_close(device);
-	g_hash_table_destroy(g_hash);
+//	g_hash_table_destroy(g_hash);
 
 	return;
 }
