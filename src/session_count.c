@@ -29,33 +29,31 @@ uint16_t		g_ICMP_num = 0;
 /* ---------- glib'hash table function ---------- */
 void free_key(gpointer f_key)
 {
-	if(NULL == f_key) //replace NULL;
+	if(!f_key) //replace NULL;
 	{
 		printf("free_key parameter NULL!!!\n");
 		return;
 	}
 	key* tmp_key = (key*)f_key;
-	printf("in key------------------%d---------------\n",tmp_key->port_src);
 	g_free(tmp_key);
 	f_key = NULL;
 }
 
 void free_value(gpointer f_value)
 {
-	if(NULL == f_value)
+	if(!f_value)
 	{
 		printf("free_value parameter NULL!!!\n");
 		return;
 	}
 	value* tmp_value = (value*)f_value;
-	printf("in value---------%d----------------\n",tmp_value->arrived_time.tv_sec);
 	g_free(tmp_value);
 	f_value = NULL;
 }
 
 gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 {
-	if(NULL == a || NULL == b)
+	if(!a || !b)
 	{
 		printf("IPqualFunc parameter NULL!!!\n");
 		return;
@@ -72,7 +70,7 @@ gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 
 void print_key_value(gpointer p_key, gpointer p_value ,gpointer user_data)
 {
-		if(NULL == p_key || NULL == p_value)
+		if(!p_key || !p_value)
 		{
 			printf("printf_key_value parameter NULL!!!\n");
 			return;
@@ -124,7 +122,6 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)tmp_key)))
 	{
 		/* lock */
-		printf("line:%d\n",__LINE__);
 		g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		g_UDP_num++;
 		/* unlock */
@@ -134,14 +131,12 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 		if((tmp_value->arrived_time.tv_sec - ret->arrived_time.tv_sec) >= TIME_OUT)
 		{
 			/* lock */
-		printf("line:%d\n",__LINE__);
 			g_hash_table_replace(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 			g_UDP_num++;
 			/* unlock */
 		}
 		else
 		{
-		printf("line:%d\n",__LINE__);
 			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		}
 	}
@@ -166,7 +161,7 @@ int session_count_init()
 	int tmp = 0;
 	g_hash_UDP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
 	g_hash_ICMP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
-	if(NULL == g_hash_UDP || NULL == g_hash_ICMP)
+	if(!g_hash_UDP || !g_hash_ICMP)
 	  return 1;
 	/* creat & init the hash table mutex */
 	/* creat pthred for manage the each hash table */
@@ -188,7 +183,6 @@ void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr, const u_char * pa
 			{
 				UDPHdr* udp_hdr;
 				udp_hdr = (UDPHdr*)(packet + MAC_HEAD_LEN + (HEAD_STEP * (ip_hdr->ip_verhl & 0xf))); /*get UDP header right place*/
-				//printf("主机字节序:%u\n",htons(udp_hdr->uh_dport));
 				is_UDP(pkthdr,ip_hdr,udp_hdr);
 			}
 			break;
@@ -210,43 +204,6 @@ void main ()
 		printf("session_count_init fail!!!\n");
 		exit(1);
 	}
-
-//	g_hash = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
-//	if(NULL == g_hash)
-//	{
-//		printf("Create hash table failed!!!\n");
-//	}
-//
-//	key hash_key;
-//	value hash_value;
-//	memset(&hash_key,0,sizeof(key));
-//	memset(&hash_value,0,sizeof(value));
-//
-//	hash_key.port_src = 1;
-//	hash_key.port_dst = 2;
-//	hash_key.ip_src = 3;
-//	hash_key.ip_dst = 4;
-//
-//	hash_value.arrived_time.tv_sec = 5678;
-//	hash_value.arrived_time.tv_usec = 1234567890;
-//
-//	g_hash_table_insert(g_hash,(gpointer)&hash_key,(gpointer)&hash_value);
-//	printf("Hash size:%d\n", g_hash_table_size(g_hash));
-//	g_hash_table_foreach(g_hash,print_key_value,NULL);
-//
-//	value* return_val = NULL;
-//	return_val = g_hash_table_lookup(g_hash,(gpointer)&hash_key);
-//
-//	printf("return_val->arrived_time.tv_sec = %d\n"
-//			"return_val->arrived_time.tv_usec = %d\n"
-//			,return_val->arrived_time.tv_sec
-//			,return_val->arrived_time.tv_usec);
-
-
-
-
-
-
 
 	devStr = pcap_lookupdev(errBuf);
 	if(devStr)
@@ -272,7 +229,6 @@ void main ()
 	pcap_loop(device, -1,getPacket,(u_char*)&id);
 
 	pcap_close(device);
-//	g_hash_table_destroy(g_hash);
 
 	return;
 }
