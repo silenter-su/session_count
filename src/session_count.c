@@ -35,7 +35,8 @@ void free_key(gpointer f_key)
 		return;
 	}
 	key* tmp_key = (key*)f_key;
-	free(tmp_key);
+	printf("in key------------------%d---------------\n",tmp_key->port_src);
+	g_free(tmp_key);
 	f_key = NULL;
 }
 
@@ -47,7 +48,8 @@ void free_value(gpointer f_value)
 		return;
 	}
 	value* tmp_value = (value*)f_value;
-	free(tmp_value);
+	printf("in value---------%d----------------\n",tmp_value->arrived_time.tv_sec);
+	g_free(tmp_value);
 	f_value = NULL;
 }
 
@@ -106,7 +108,7 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 	value* ret = NULL;
 	key* tmp_key = NULL;
 	value* tmp_value = NULL;
-	if(!(tmp_key = (key*)calloc(1,sizeof(key))) || !(tmp_value = (value*)calloc(1,sizeof(value))))
+	if(!(tmp_key = (key*)g_try_malloc0(sizeof(key))) || !(tmp_value = (value*)g_try_malloc0(sizeof(value))))
 	{
 		printf("is_UDP temp key or value calloc failed!\n");
 	}
@@ -119,10 +121,11 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 
 	gettimeofday(&tmp_value->arrived_time,NULL);
 
-	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)&tmp_key)))
+	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)tmp_key)))
 	{
 		/* lock */
-		g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+		printf("line:%d\n",__LINE__);
+		g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		g_UDP_num++;
 		/* unlock */
 	}
@@ -131,13 +134,15 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 		if((tmp_value->arrived_time.tv_sec - ret->arrived_time.tv_sec) >= TIME_OUT)
 		{
 			/* lock */
-			g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+		printf("line:%d\n",__LINE__);
+			g_hash_table_replace(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 			g_UDP_num++;
 			/* unlock */
 		}
 		else
 		{
-			g_hash_table_insert(g_hash_UDP,(gpointer)&tmp_key,(gpointer)&tmp_value);
+		printf("line:%d\n",__LINE__);
+			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		}
 	}
 	printf("----------%d----------\n",g_UDP_num);
@@ -200,7 +205,7 @@ void main ()
 {
 	char errBuf[PCAP_ERRBUF_SIZE], * devStr;
 	int ret = 0;
-	if(ret = session_count_init())
+	if(ret != session_count_init())
 	{
 		printf("session_count_init fail!!!\n");
 		exit(1);
