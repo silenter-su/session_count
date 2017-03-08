@@ -59,6 +59,7 @@ typedef struct _value
 } value;
 
 /* ---------- glib'hash table function ---------- */
+guint g_ip_hash(gconstpointer v);
 void free_key(gpointer f_key);
 void free_value(gpointer f_value);
 gboolean IPEqualFunc (gconstpointer a,gconstpointer b);

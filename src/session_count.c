@@ -12,6 +12,7 @@
 #define TIME_OUT 20 
 #define MAC_HEAD_LEN 14
 #define HEAD_STEP 4
+#define HASH_BUF 128
 
 /* ----------Data types---------- */ 
 
@@ -27,6 +28,16 @@ uint16_t		g_UDP_num = 0;
 uint16_t		g_ICMP_num = 0;
 
 /* ---------- glib'hash table function ---------- */
+guint g_ip_hash(gconstpointer v)
+{
+	printf("-------------in g_ip_hash--------------\n");
+	char buf[HASH_BUF];
+	memset(buf,0,HASH_BUF);
+	key *p = (key*)v;	
+	sprintf(buf,"%d%d%d%d",p->port_src,p->port_dst,p->ip_src,p->ip_dst);
+	printf("字符串的值是:%s\n",buf);
+	return g_str_hash((gconstpointer)buf);
+}
 void free_key(gpointer f_key)
 {
 	if(!f_key) //replace NULL;
@@ -53,17 +64,22 @@ void free_value(gpointer f_value)
 
 gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 {
+		printf("-----------------in Equal Func----------------\n");
+
 	if(!a || !b)
 	{
-		printf("IPqualFunc parameter NULL!!!\n");
-		return;
+		printf("IPEqualFunc parameter NULL!!!\n");
 	}
 	
 	key *tmp_key_a = (key*)a;
 	key *tmp_key_b = (key*)b;
 		
-	if(!memcmp(a,b,sizeof(key)));
-				return TRUE;
+	if(!memcmp(tmp_key_a,tmp_key_b,sizeof(key)));
+	{
+		printf("-----------------Equal----------------\n");
+		return TRUE;
+	}
+	printf("----------Not Equal----------\n");
 	return FALSE;
 
 }
@@ -122,7 +138,8 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)tmp_key)))
 	{
 		/* lock */
-		g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
+		printf("-------%d----------\n",__LINE__);
+		g_hash_table_replace(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		g_UDP_num++;
 		/* unlock */
 	}
@@ -131,17 +148,20 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 		if((tmp_value->arrived_time.tv_sec - ret->arrived_time.tv_sec) >= TIME_OUT)
 		{
 			/* lock */
-			g_hash_table_replace(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
+		printf("-------%d----------\n",__LINE__);
+			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 			g_UDP_num++;
 			/* unlock */
 		}
 		else
 		{
+		printf("-------%d----------\n",__LINE__);
 			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		}
 	}
-	printf("----------%d----------\n",g_UDP_num);
-
+	printf("g_hash_UDP size is %d.\n",g_hash_table_size (g_hash_UDP));
+	g_hash_table_foreach (g_hash_UDP,print_key_value,"each key/value:\n");
+	printf("---------------------------------------分割线-------------------------------------\n");
 
 }
 
@@ -159,8 +179,8 @@ void is_other_protocol(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
 int session_count_init()
 {
 	int tmp = 0;
-	g_hash_UDP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
-	g_hash_ICMP = g_hash_table_new_full(g_direct_hash,IPEqualFunc,free_key,free_value);
+	g_hash_UDP = g_hash_table_new_full(g_ip_hash,IPEqualFunc,free_key,free_value);
+	g_hash_ICMP = g_hash_table_new_full(g_ip_hash,IPEqualFunc,free_key,free_value);
 	if(!g_hash_UDP || !g_hash_ICMP)
 	  return 1;
 	/* creat & init the hash table mutex */
