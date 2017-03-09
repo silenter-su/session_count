@@ -15,7 +15,7 @@ extern uint32_t		g_UDP_send;
 extern uint32_t		g_stream_UDP_total;
 extern uint32_t		g_stream_UDP_rec;
 extern uint32_t		g_stream_UDP_send;
-extern uint32_t		local_net_ip;
+extern struct in_addr local_net_ip;
 
 
 /* ---------- structural ---------- */

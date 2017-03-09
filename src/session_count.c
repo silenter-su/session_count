@@ -22,7 +22,7 @@
 GHashTable*		g_hash_UDP = NULL;
 GHashTable*		g_hash_ICMP = NULL;
 GHashTable*		g_hash = NULL;
-uint32_t		local_net_ip = 0;
+struct in_addr	g_local_ip;
 uint16_t		g_total_num = 0;
 uint16_t		g_TCP_num = 0;
 uint16_t		g_UDP_num = 0;
@@ -68,10 +68,10 @@ gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 	{
 		printf("IPEqualFunc parameter NULL!!!\n");
 	}
-	
+
 	key *tmp_key_a = (key*)a;
 	key *tmp_key_b = (key*)b;
-		
+
 	if(!memcmp(tmp_key_a,tmp_key_b,sizeof(key)));
 	{
 		return TRUE;
@@ -82,18 +82,18 @@ gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 
 void print_key_value(gpointer p_key, gpointer p_value ,gpointer user_data)
 {
-		if(!p_key || !p_value)
-		{
-			printf("printf_key_value parameter NULL!!!\n");
-			return;
-		}
+	if(!p_key || !p_value)
+	{
+		printf("printf_key_value parameter NULL!!!\n");
+		return;
+	}
 
-		key* tmp_key;
-		value* tmp_value;
-		tmp_key	= (key*)p_key;
-		tmp_value = (value*)p_value;
+	key* tmp_key;
+	value* tmp_value;
+	tmp_key	= (key*)p_key;
+	tmp_value = (value*)p_value;
 
-		printf("port_src = %d\n"
+	printf("port_src = %d\n"
 				"port_dst = %d\n"
 				"ip_src	 = %d\n"
 				"ip_dst	 = %d\n\n"
@@ -124,7 +124,7 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 		printf("is_UDP temp key or value calloc failed!\n");
 	}
 
-	
+
 	tmp_key->ip_src = ip_hdr->ip_src.s_addr;
 	tmp_key->ip_dst = ip_hdr->ip_dst.s_addr;
 	tmp_key->port_src = udp_hdr->uh_sport;
@@ -171,6 +171,7 @@ void is_other_protocol(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
 /* ---------- other ---------- */
 int session_count_init()
 {
+	memset(&g_local_ip,0,sizeof(struct in_addr));
 	int tmp = 0;
 	g_hash_UDP = g_hash_table_new_full(g_ip_hash,IPEqualFunc,free_key,free_value);
 	g_hash_ICMP = g_hash_table_new_full(g_ip_hash,IPEqualFunc,free_key,free_value);
@@ -186,7 +187,7 @@ void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr, const u_char * pa
 	IPHdr *ip_hdr = NULL;
 	ip_hdr = (IPHdr*)(packet + MAC_HEAD_LEN);
 
-	
+
 	switch(ip_hdr->ip_proto)
 	{
 		case IPPROTO_TCP:
@@ -212,6 +213,7 @@ void get_local_ip(const char* dev)
 {
 	pcap_if_t *alldevs;
 	pcap_if_t *device;
+	pcap_addr_t *a = NULL;
 	char errbuf[PCAP_ERRBUF_SIZE + 1];
 	if(pcap_findalldevs(&alldevs, errbuf) == -1)
 	{
@@ -221,9 +223,73 @@ void get_local_ip(const char* dev)
 	device = alldevs;
 	for(; device != NULL; device = device->next)
 	{
+		if(!strcmp(dev,device->name))
+		  break;
 		printf("Device name: %s\n", device->name);
 		printf("Description: %s\n", device->description);
 	}
+
+	for(a=device->addresses;a;a=a->next) {
+		if (a->addr != NULL)
+		  switch(a->addr->sa_family) {
+			  case AF_INET:
+				  printf("\tAddress Family: AF_INET\n");
+				  if (a->addr)
+				  {
+					printf("\t\tAddress: %s\n网络字节序:%d",
+								inet_ntoa(((struct sockaddr_in *)(a->addr))->sin_addr),((struct sockaddr_in *)(a->addr))->sin_addr);
+					g_local_ip = ((struct sockaddr_in *)(a->addr))->sin_addr;
+				  }
+				  if (a->netmask)
+					printf("\t\tNetmask: %s\n",
+								inet_ntoa(((struct sockaddr_in *)(a->netmask))->sin_addr));
+				  if (a->broadaddr)
+					printf("\t\tBroadcast Address: %s\n",
+								inet_ntoa(((struct sockaddr_in *)(a->broadaddr))->sin_addr));
+				  if (a->dstaddr)
+					printf("\t\tDestination Address: %s\n",
+								inet_ntoa(((struct sockaddr_in *)(a->dstaddr))->sin_addr));
+				  break;
+#ifdef INET6
+			  case AF_INET6:
+				  printf("\tAddress Family: AF_INET6\n");
+				  if (a->addr)
+					printf("\t\tAddress: %s\n",
+								inet_ntop(AF_INET6,
+									((struct sockaddr_in6 *)(a->addr))->sin6_addr.s6_addr,
+									ntop_buf, sizeof ntop_buf));
+				  if (a->netmask)
+					printf("\t\tNetmask: %s\n",
+								inet_ntop(AF_INET6,
+									((struct sockaddr_in6 *)(a->netmask))->sin6_addr.s6_addr,
+									ntop_buf, sizeof ntop_buf));
+				  if (a->broadaddr)
+					printf("\t\tBroadcast Address: %s\n",
+								inet_ntop(AF_INET6,
+									((struct sockaddr_in6 *)(a->broadaddr))->sin6_addr.s6_addr,
+									ntop_buf, sizeof ntop_buf));
+				  if (a->dstaddr)
+					printf("\t\tDestination Address: %s\n",
+								inet_ntop(AF_INET6,
+									((struct sockaddr_in6 *)(a->dstaddr))->sin6_addr.s6_addr,
+									ntop_buf, sizeof ntop_buf));
+				  break;
+#endif
+			  default:
+				  printf("\tAddress Family: Unknown (%d)\n", a->addr->sa_family);
+				  break;
+		  }
+		else
+		{
+			fprintf(stderr, "\tWarning: a->addr is NULL, skipping this address.\n");
+			//status = 0;
+		}
+	}
+
+
+
+
+
 	/* 不再需要设备列表了，释放它 */
 	pcap_freealldevs(alldevs);
 	return; 
@@ -269,10 +335,10 @@ void main ()
 
 	get_local_ip(devStr);
 
-//	pcap_lookupnet(devStr,&local_net_ip,&net_mask,errBuf);
-//	net_ip_address.s_addr = local_net_ip;
-//	local_net_ip_string = inet_ntoa(net_ip_address);
-//	printf("----------local_net_ip:%s-----------\n",local_net_ip_string);
+	//	pcap_lookupnet(devStr,&local_net_ip,&net_mask,errBuf);
+	//	net_ip_address.s_addr = local_net_ip;
+	//	local_net_ip_string = inet_ntoa(net_ip_address);
+	//	printf("----------local_net_ip:%s-----------\n",local_net_ip_string);
 
 
 	/*open a device,wait until a packet arrives*/
