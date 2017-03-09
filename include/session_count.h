@@ -9,6 +9,14 @@ extern uint16_t		g_total_num;
 extern uint16_t		g_TCP_num;
 extern uint16_t		g_UDP_num;
 extern uint16_t		g_ICMP_num;
+extern uint32_t		g_UDP_total;
+extern uint32_t		g_UDP_rec;
+extern uint32_t		g_UDP_send;
+extern uint32_t		g_stream_UDP_total;
+extern uint32_t		g_stream_UDP_rec;
+extern uint32_t		g_stream_UDP_send;
+extern uint32_t		local_net_ip;
+
 
 /* ---------- structural ---------- */
 typedef struct _IPHdr
@@ -74,5 +82,6 @@ void is_other_protocol(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr);
 /* ---------- other ---------- */
 int session_count_init();
 void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr,const u_char * packet);
+void get_local_ip(const char* dev);
 
 #endif

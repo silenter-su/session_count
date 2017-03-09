@@ -22,22 +22,22 @@
 GHashTable*		g_hash_UDP = NULL;
 GHashTable*		g_hash_ICMP = NULL;
 GHashTable*		g_hash = NULL;
+uint32_t		local_net_ip = 0;
 uint16_t		g_total_num = 0;
 uint16_t		g_TCP_num = 0;
 uint16_t		g_UDP_num = 0;
 uint16_t		g_ICMP_num = 0;
-
+uint32_t		g_UDP_total = 0;
 /* ---------- glib'hash table function ---------- */
 guint g_ip_hash(gconstpointer v)
 {
-	printf("-------------in g_ip_hash--------------\n");
 	char buf[HASH_BUF];
 	memset(buf,0,HASH_BUF);
 	key *p = (key*)v;	
 	sprintf(buf,"%d%d%d%d",p->port_src,p->port_dst,p->ip_src,p->ip_dst);
-	printf("字符串的值是:%s\n",buf);
 	return g_str_hash((gconstpointer)buf);
 }
+
 void free_key(gpointer f_key)
 {
 	if(!f_key) //replace NULL;
@@ -64,8 +64,6 @@ void free_value(gpointer f_value)
 
 gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 {
-		printf("-----------------in Equal Func----------------\n");
-
 	if(!a || !b)
 	{
 		printf("IPEqualFunc parameter NULL!!!\n");
@@ -76,10 +74,8 @@ gboolean IPEqualFunc (gconstpointer a,gconstpointer b)
 		
 	if(!memcmp(tmp_key_a,tmp_key_b,sizeof(key)));
 	{
-		printf("-----------------Equal----------------\n");
 		return TRUE;
 	}
-	printf("----------Not Equal----------\n");
 	return FALSE;
 
 }
@@ -119,6 +115,7 @@ void is_TCP(const struct pcap_pkthdr * pkthdr, const IPHdr *ip_hdr)
 
 void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *udp_hdr)
 {
+	g_UDP_total++;
 	value* ret = NULL;
 	key* tmp_key = NULL;
 	value* tmp_value = NULL;
@@ -138,7 +135,6 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 	if(!(ret = g_hash_table_lookup(g_hash_UDP,(gpointer)tmp_key)))
 	{
 		/* lock */
-		printf("-------%d----------\n",__LINE__);
 		g_hash_table_replace(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		g_UDP_num++;
 		/* unlock */
@@ -148,20 +144,17 @@ void is_UDP(const struct pcap_pkthdr *pkthdr,const IPHdr *ip_hdr, const UDPHdr *
 		if((tmp_value->arrived_time.tv_sec - ret->arrived_time.tv_sec) >= TIME_OUT)
 		{
 			/* lock */
-		printf("-------%d----------\n",__LINE__);
 			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 			g_UDP_num++;
 			/* unlock */
 		}
 		else
 		{
-		printf("-------%d----------\n",__LINE__);
 			g_hash_table_insert(g_hash_UDP,(gpointer)tmp_key,(gpointer)tmp_value);
 		}
 	}
 	printf("g_hash_UDP size is %d.\n",g_hash_table_size (g_hash_UDP));
 	g_hash_table_foreach (g_hash_UDP,print_key_value,"each key/value:\n");
-	printf("---------------------------------------分割线-------------------------------------\n");
 
 }
 
@@ -215,10 +208,48 @@ void getPacket(u_char * arg,const struct pcap_pkthdr * pkthdr, const u_char * pa
 	}
 }
 
+void get_local_ip(const char* dev)
+{
+	pcap_if_t *alldevs;
+	pcap_if_t *device;
+	char errbuf[PCAP_ERRBUF_SIZE + 1];
+	if(pcap_findalldevs(&alldevs, errbuf) == -1)
+	{
+		fprintf(stderr, "Error in pcap_findalldevs: %s\n", errbuf);
+		exit(EXIT_FAILURE);
+	}
+	device = alldevs;
+	for(; device != NULL; device = device->next)
+	{
+		printf("Device name: %s\n", device->name);
+		printf("Description: %s\n", device->description);
+	}
+	/* 不再需要设备列表了，释放它 */
+	pcap_freealldevs(alldevs);
+	return; 
+}
+
 void main ()
 {
-	char errBuf[PCAP_ERRBUF_SIZE], * devStr;
+	char errBuf[PCAP_ERRBUF_SIZE + 1], * devStr;//指针要不要释放.
 	int ret = 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	if(ret != session_count_init())
 	{
 		printf("session_count_init fail!!!\n");
@@ -235,6 +266,14 @@ void main ()
 		printf("error: %s\n",errBuf);
 		exit(1);
 	}
+
+	get_local_ip(devStr);
+
+//	pcap_lookupnet(devStr,&local_net_ip,&net_mask,errBuf);
+//	net_ip_address.s_addr = local_net_ip;
+//	local_net_ip_string = inet_ntoa(net_ip_address);
+//	printf("----------local_net_ip:%s-----------\n",local_net_ip_string);
+
 
 	/*open a device,wait until a packet arrives*/
 	pcap_t * device = pcap_open_live(devStr,65535,1,0,errBuf);
